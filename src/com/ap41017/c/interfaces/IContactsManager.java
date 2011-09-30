@@ -5,13 +5,11 @@ import android.content.ContentResolver;
 import com.ap41017.c.interfaces.ICallLog.CallType;
 import com.ap41017.c.interfaces.IDataColumn.IPhone;
 
-public abstract class IContactsManager {
+public interface IContactsManager {
 
-	protected abstract IContactsManager loadInBackground(ContentResolver cr);
+	public abstract IContactsManager loadDatas(ContentResolver cr);
 
 	public abstract IPhone[] phoneLookup(String phone);
-
-	public abstract IBaseColumn[] getGroupContact(int numOfColumn);
 
 	public abstract IGroup[] getGroups();
 

@@ -1,9 +1,7 @@
 package com.ap41017.c.impl;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -29,7 +27,6 @@ import android.util.Log;
 
 import com.ap41017.c.impl.ConcretData.ConcretGroupMembership;
 import com.ap41017.c.impl.ConcretData.ConcretPhone;
-import com.ap41017.c.interfaces.IBaseColumn;
 import com.ap41017.c.interfaces.ICallLog;
 import com.ap41017.c.interfaces.ICallLog.CallType;
 import com.ap41017.c.interfaces.IContact;
@@ -38,10 +35,10 @@ import com.ap41017.c.interfaces.IDataColumn;
 import com.ap41017.c.interfaces.IDataColumn.IPhone;
 import com.ap41017.c.interfaces.IGroup;
 
-/*package*/class ConcretManager extends IContactsManager {
+public class BasicContactManager implements IContactsManager {
 
 	@Override
-	protected IContactsManager loadInBackground(ContentResolver cr) {
+	public IContactsManager loadDatas(ContentResolver cr) {
 		this.mCCClient = cr
 				.acquireContentProviderClient(ContactsContract.AUTHORITY);
 		this.mCLClient = cr.acquireContentProviderClient(CallLog.AUTHORITY);
@@ -95,7 +92,6 @@ import com.ap41017.c.interfaces.IGroup;
 					phones[i] = phonesMap.get(p.getString(0));
 					p.moveToNext();
 				}
-				Arrays.sort(phones);
 			}
 			p.close();
 			return phones;
@@ -104,41 +100,14 @@ import com.ap41017.c.interfaces.IGroup;
 	}
 
 	@Override
-	public IBaseColumn[] getGroupContact(int numOfColumn) {
-		IGroup[] groups = this.getGroups();
-		ArrayList<ConcretContact> con = null;
-		List<IBaseColumn> rtn = new ArrayList<IBaseColumn>();
-		for (IGroup group : groups) {
-			if (!group.getVisible())
-				continue;
-			con = this.getContacts(group.getId());
-			for (int i = 0; i < numOfColumn; ++i)
-				rtn.add(con.get(i));
-			rtn.add(group);
-		}
-		return rtn.toArray(new IBaseColumn[rtn.size()]);
-	}
-
-	@Override
 	public IGroup[] getGroups() {
 		Collection<ConcretGroup> values = this.mGroupsMap.values();
 		return values.toArray(new IGroup[values.size()]);
 	}
 
-	/**
-	 * return a sorted list.
-	 * @param groupId
-	 * @return
-	 */
-	private ArrayList<ConcretContact> getContacts(Long groupId) {
-		ArrayList<ConcretContact> list = this.mGroupListMap.get(groupId);
-		Collections.sort(list);
-		return list;
-	}
-
 	@Override
 	public IContact[] getContacts(IGroup group) {
-		ArrayList<ConcretContact> list = this.getContacts(group.getId());
+		ArrayList<ConcretContact> list = this.mGroupListMap.get(group.getId());
 		return list.toArray(new IContact[list.size()]);
 	}
 
@@ -181,17 +150,15 @@ import com.ap41017.c.interfaces.IGroup;
 				id = c.getLong(0);
 				conid = c.getLong(1);
 				contact = conMap.get(conid);
-				if (contact == null) {
+				if (contact == null)
 					conMap.put(conid, contact = new ConcretContact(conid));
-					contact.mCreateColumn = 0;
-				}
-				index = (Integer) contact.mCreateColumn;
+				index = contact.mRawContactLength;
 				list = contact.mRawContactIds;
 				if (index == list.length) {
 					list = contact.mRawContactIds = expand(list);
 				}
 				list[index] = id;
-				contact.mCreateColumn = ++index;
+				++contact.mRawContactLength;
 				//
 				rawMap.put(id, contact);
 				c.moveToNext();
@@ -296,10 +263,6 @@ import com.ap41017.c.interfaces.IGroup;
 			return;
 		}
 		HashMap<Long, ConcretContact> rawMap = mRawMap;
-		Set<Entry<Long, ConcretContact>> set = rawMap.entrySet();
-		for (Entry<Long, ConcretContact> entry : set)
-			entry.getValue().mCreateColumn = 0;
-		// 
 		mPhonesMap = new HashMap<String, ConcretData.ConcretPhone>();
 		mGroupListMap = new HashMap<Long, ArrayList<ConcretContact>>();
 		HashMap<String, ConcretData.ConcretPhone> phonesMap = mPhonesMap;
@@ -319,7 +282,7 @@ import com.ap41017.c.interfaces.IGroup;
 			rawId = c.getLong(1);
 			mimetype = c.getString(2);
 			contact = rawMap.get(rawId);
-			index = (Integer) contact.mCreateColumn;
+			index = contact.mDataColumnLength;
 			datas = contact.mDatas;
 			//
 			if (Phone.CONTENT_ITEM_TYPE.equals(mimetype)) {
@@ -347,15 +310,11 @@ import com.ap41017.c.interfaces.IGroup;
 							new IDataColumn[datas.length * 2]);
 				}
 				datas[index] = data;
-				contact.mCreateColumn = ++index;
+				++contact.mDataColumnLength;
 				data = null;
 			}
 			c.moveToNext();
 		}
-		set = rawMap.entrySet();
-		/*for (Entry<Long, ConcretContact> entry : set)
-			Log.d("gc", entry.getValue().toString());*/
-
 	}
 
 	private void visitCallLogs() throws RemoteException {

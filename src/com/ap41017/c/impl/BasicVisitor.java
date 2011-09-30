@@ -7,7 +7,7 @@ import com.ap41017.c.interfaces.IDataColumn.IPhone;
 import com.ap41017.c.interfaces.IGroup;
 import com.ap41017.c.interfaces.IVisitor;
 
-public class BaseVisitor<Ret, Arg> implements IVisitor<Ret, Arg> {
+public class BasicVisitor<Ret, Arg> implements IVisitor<Ret, Arg> {
 
 	@Override
 	public Ret visit(IContact contact, Arg arg) {

@@ -1,0 +1,15 @@
+# apk
+*.apk
+*.ap_
+
+# dex
+*.dex
+
+# java class
+*.class
+
+# generated java file
+*/R.java
+
+# eclipse setting
+.settings

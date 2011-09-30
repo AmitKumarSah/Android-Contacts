@@ -44,11 +44,10 @@ import com.ap41017.c.interfaces.IVisitor;
 
 	/* package */long mLastTimeContacted;
 	/* package */String mLookupKey, mName;
-	/* package */int mTimesContacted;
+	/* package */int mTimesContacted, mRawContactLength, mDataColumnLength;
 	/* package */long[] mRawContactIds = new long[4];
 	/* package */byte[] mPhoto;
 	/* package */IDataColumn[] mDatas = new IDataColumn[4];
-	/* package */Object mCreateColumn;
 
 	@Override
 	public <Ret, Arg> Ret accept(IVisitor<Ret, Arg> visitor, Arg arg) {
@@ -58,9 +57,8 @@ import com.ap41017.c.interfaces.IVisitor;
 	@Override
 	public <Ret, Arg> Ret[] acceptIDataColumns(IVisitor<Ret, Arg> visitor,
 			Arg arg) {
-		for (IDataColumn d : this.mDatas)
-			if (d != null)
-				d.accept(visitor, arg);
+		for (int i = 0; i < this.mDataColumnLength; ++i)
+			this.mDatas[i].accept(visitor, arg);
 		return null;
 	}
 
@@ -87,5 +85,15 @@ import com.ap41017.c.interfaces.IVisitor;
 	@Override
 	public byte[] getPhoto() {
 		return this.mPhoto;
+	}
+
+	@Override
+	public int getRawContactCount() {
+		return mRawContactLength;
+	}
+
+	@Override
+	public long getRawContactId(int position) {
+		return this.mRawContactIds[position];
 	}
 }
