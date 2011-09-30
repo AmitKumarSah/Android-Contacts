@@ -12,8 +12,10 @@ public interface IContactsManager {
 	public abstract IPhone[] phoneLookup(String phone);
 
 	public abstract IGroup[] getGroups();
+	
+	public abstract IContact[] getAllContacts();
 
-	public abstract IContact[] getContacts(IGroup group);
+	public abstract IContact[] getContactsIn(IGroup group);
 
 	public abstract ICallLog[] getCallLogs(CallType callType, boolean getUnknown);
 

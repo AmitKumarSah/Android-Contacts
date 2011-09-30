@@ -106,7 +106,12 @@ public class BasicContactManager implements IContactsManager {
 	}
 
 	@Override
-	public IContact[] getContacts(IGroup group) {
+	public IContact[] getAllContacts() {
+		return this.mAllContacts;
+	}
+
+	@Override
+	public IContact[] getContactsIn(IGroup group) {
 		ArrayList<ConcretContact> list = this.mGroupListMap.get(group.getId());
 		return list.toArray(new IContact[list.size()]);
 	}
@@ -126,6 +131,7 @@ public class BasicContactManager implements IContactsManager {
 	private HashMap<Long, ConcretGroup> mGroupsMap;
 	private HashMap<Long, ArrayList<ConcretContact>> mGroupListMap;
 	private HashMap<String, ConcretPhone> mPhonesMap;
+	private ConcretContact[] mAllContacts;
 	private ConcretCallLog[][] mCalls;
 
 	private void visitRawContacts() throws RemoteException {
@@ -185,8 +191,8 @@ public class BasicContactManager implements IContactsManager {
 			c.close();
 			return;
 		}
+		HashMap<Long, ConcretContact> conMap = mConMap;
 		try {
-			HashMap<Long, ConcretContact> conMap = mConMap;
 			ConcretContact contact;
 			long id, last;
 			String dname = null, lookup = null;
@@ -211,6 +217,8 @@ public class BasicContactManager implements IContactsManager {
 		} finally {
 			c.close();
 		}
+		mAllContacts = new ConcretContact[conMap.size()];
+		mAllContacts = conMap.values().toArray(mAllContacts);
 	}
 
 	private void visitGroups() throws RemoteException {
