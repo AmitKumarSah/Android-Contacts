@@ -22,4 +22,6 @@ public interface IContact extends IBaseColumn {
 	public IPhone[] getPhones();
 
 	public IGroupMembership[] getGroupMemberships();
+	
+	public ICallLog[] getCallLogs();
 }

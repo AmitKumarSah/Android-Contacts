@@ -3,12 +3,11 @@ package com.ap41017.c.impl;
 import com.ap41017.c.interfaces.IGroup;
 
 /*package*/class ConcretGroup extends ConcretBaseColumn implements IGroup {
-	/*package*/ConcretGroup(long id, String systemId, String title,
-			boolean visible) {
+	/*package*/ConcretGroup(long id, String systemId, String title, int visible) {
 		super(id);
 		this.mSystemId = systemId;
 		this.mTitle = title;
-		this.mVisible = visible;
+		this.mVisible = visible > 0;
 	}
 
 	/*package*/ConcretGroup setAccount(String acName, String acType) {

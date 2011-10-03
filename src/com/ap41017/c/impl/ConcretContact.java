@@ -7,6 +7,7 @@ import android.provider.ContactsContract.Contacts;
 
 import com.ap41017.c.impl.ConcretContactData.ConcretGroupMembership;
 import com.ap41017.c.impl.ConcretContactData.ConcretPhone;
+import com.ap41017.c.interfaces.ICallLog;
 import com.ap41017.c.interfaces.IContact;
 import com.ap41017.c.interfaces.IContactData.IGroupMembership;
 import com.ap41017.c.interfaces.IContactData.IPhone;
@@ -63,17 +64,25 @@ import com.ap41017.c.interfaces.IContactData.IPhone;
 			this.mPhoneList = new ArrayList<ConcretPhone>();
 		this.mPhoneList.add(phone);
 		return this;
-	}/*package*/
+	}
 
-	ConcretContact addGroupMembership(ConcretGroupMembership group) {
+	/*package*/ConcretContact addGroupMembership(ConcretGroupMembership group) {
 		if (this.mGroupsList == null)
 			this.mGroupsList = new ArrayList<ConcretGroupMembership>();
 		this.mGroupsList.add(group);
+		return this;
+	}/*package*/
+
+	ConcretContact addCallLog(ConcretCallLog log) {
+		if (this.mCallLogList == null)
+			this.mCallLogList = new ArrayList<ConcretCallLog>();
+		this.mCallLogList.add(log);
 		return this;
 	}
 
 	private ArrayList<ConcretPhone> mPhoneList;
 	private ArrayList<ConcretGroupMembership> mGroupsList;
+	private ArrayList<ConcretCallLog> mCallLogList;
 
 	@Override
 	public Uri getLookupUri() {
@@ -129,6 +138,15 @@ import com.ap41017.c.interfaces.IContactData.IPhone;
 	}
 
 	@Override
+	public ICallLog[] getCallLogs() {
+		if (this.mCallLogList == null)
+			return null;
+		else
+			return this.mCallLogList.toArray(new ICallLog[this.mCallLogList
+					.size()]);
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder b = new StringBuilder(1024);
 		b.append("id:").append(this.getId()).append(',');
@@ -140,4 +158,5 @@ import com.ap41017.c.interfaces.IContactData.IPhone;
 		b.append('\n');
 		return b.toString();
 	}
+
 }

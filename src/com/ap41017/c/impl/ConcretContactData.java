@@ -10,15 +10,43 @@ public abstract class ConcretContactData extends ConcretBaseColumn implements
 		IContactData {
 
 	private ConcretContact mContact;
+	private boolean mPrimary, mSuperPri;
+	private int mDataVersion;
 
 	/*package*/ConcretContactData(long id, ConcretContact contact) {
 		super(id);
 		this.mContact = contact;
 	}
 
+	/*package*/ConcretContactData setPrimary(int primary, int superPri) {
+		this.mPrimary = primary > 0;
+		this.mSuperPri = superPri > 0;
+		return this;
+	}
+
+	/*package*/ConcretContactData setDataVersion(int dataVersion) {
+		this.mDataVersion = dataVersion;
+		return this;
+	}
+
 	@Override
 	public ConcretContact getContactParent() {
 		return this.mContact;
+	}
+
+	@Override
+	public boolean isPrimary() {
+		return this.mPrimary;
+	}
+
+	@Override
+	public boolean isSuperPrimary() {
+		return this.mSuperPri;
+	}
+
+	@Override
+	public int getDataVersion() {
+		return this.mDataVersion;
 	}
 
 	/*package*/static class ConcretGroupMembership extends ConcretContactData
@@ -71,8 +99,8 @@ public abstract class ConcretContactData extends ConcretBaseColumn implements
 		}
 
 		@Override
-		public int getTypeInt() {
-			return this.mType;
+		public PhoneType getPhoneType() {
+			return PhoneType.values()[this.mType];
 		}
 
 		@Override

@@ -14,10 +14,12 @@ import com.ap41017.c.interfaces.ICallLog;
 	private ConcretPhone mParent;
 	private long mTime, mDuration;
 
-	private ConcretCallLog(long id, String number, ConcretPhone result) {
-		super(id, result.getContactParent());
+	private ConcretCallLog(long id, String number, ConcretPhone result,
+			ConcretContact contact) {
+		super(id, contact);
 		this.mNumber = number;
 		this.mParent = result;
+		contact.addCallLog(this);
 	}
 
 	private ConcretCallLog(long id, String number) {
@@ -28,7 +30,8 @@ import com.ap41017.c.interfaces.ICallLog;
 	/*package*/static ConcretCallLog newInstance(long id, String number,
 			ConcretPhone result, List<ConcretCallLog> unknown) {
 		if (result != null)
-			return new ConcretCallLog(id, number, result);
+			return new ConcretCallLog(id, number, result,
+					result.getContactParent());
 		else {
 			ConcretCallLog call = new ConcretCallLog(id, number);
 			unknown.add(call);
@@ -49,7 +52,7 @@ import com.ap41017.c.interfaces.ICallLog;
 			break;
 		case Calls.MISSED_TYPE:
 			this.mType = CallType.MISSED;
-			out.add(this);
+			missed.add(this);
 			break;
 		}
 		return this;
