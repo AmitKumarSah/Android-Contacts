@@ -1,45 +1,72 @@
 package com.ap41017.c.impl;
 
+import java.util.List;
+
 import android.provider.CallLog.Calls;
 import android.text.format.DateUtils;
 
 import com.ap41017.c.interfaces.ICallLog;
-import com.ap41017.c.interfaces.IDataColumn.IPhone;
-import com.ap41017.c.interfaces.IVisitor;
 
-public class ConcretCallLog extends ConcretBaseColumn implements ICallLog {
+/*package*/class ConcretCallLog extends ConcretContactData implements ICallLog {
+
 	private String mNumber;
 	private CallType mType;
-	/*package*/IPhone mParent;
-	/*package*/long mTime, mDuration;
+	private ConcretPhone mParent;
+	private long mTime, mDuration;
 
-	/*package*/ConcretCallLog(long id) {
-		super(id);
-	}
-
-	/*package*/void setupNumber(String number, int type, IPhone result) {
+	private ConcretCallLog(long id, String number, ConcretPhone result) {
+		super(id, result.getContactParent());
 		this.mNumber = number;
-		switch (type) {
-		case Calls.INCOMING_TYPE:
-			this.mType = CallType.INCOMING;
-			break;
-		case Calls.OUTGOING_TYPE:
-			this.mType = CallType.OUTGOING;
-			break;
-		case Calls.MISSED_TYPE:
-			this.mType = CallType.MISSED;
-			break;
-		}
 		this.mParent = result;
 	}
 
-	@Override
-	public <Ret, Arg> Ret accept(IVisitor<Ret, Arg> visitor, Arg arg) {
-		return visitor.visit(this, arg);
+	private ConcretCallLog(long id, String number) {
+		super(id, null);
+		this.mNumber = number;
+	}
+
+	/*package*/static ConcretCallLog newInstance(long id, String number,
+			ConcretPhone result, List<ConcretCallLog> unknown) {
+		if (result != null)
+			return new ConcretCallLog(id, number, result);
+		else {
+			ConcretCallLog call = new ConcretCallLog(id, number);
+			unknown.add(call);
+			return call;
+		}
+	}
+
+	/*package*/ConcretCallLog setType(int type, List<ConcretCallLog> in,
+			List<ConcretCallLog> out, List<ConcretCallLog> missed) {
+		switch (type) {
+		case Calls.INCOMING_TYPE:
+			this.mType = CallType.INCOMING;
+			in.add(this);
+			break;
+		case Calls.OUTGOING_TYPE:
+			this.mType = CallType.OUTGOING;
+			out.add(this);
+			break;
+		case Calls.MISSED_TYPE:
+			this.mType = CallType.MISSED;
+			out.add(this);
+			break;
+		}
+		return this;
+	}
+
+	/*package*/ConcretCallLog setDate(long date) {
+		this.mTime = date;
+		return this;
+	}
+
+	/*package*/ConcretCallLog setDuration(long duration) {
+		this.mDuration = duration;
+		return this;
 	}
 
 	@Override
-	public IPhone getParent() {
+	public ConcretPhone getPhoneParent() {
 		return this.mParent;
 	}
 

@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
@@ -21,21 +20,23 @@ import android.provider.ContactsContract.CommonDataKinds.Photo;
 import android.provider.ContactsContract.Contacts;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.Groups;
+import android.provider.ContactsContract.PhoneLookup;
 import android.provider.ContactsContract.RawContacts;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.ap41017.c.impl.ConcretData.ConcretGroupMembership;
-import com.ap41017.c.impl.ConcretData.ConcretPhone;
+import com.ap41017.c.impl.ConcretContactData.ConcretGroupMembership;
+import com.ap41017.c.impl.ConcretContactData.ConcretPhone;
 import com.ap41017.c.interfaces.ICallLog;
 import com.ap41017.c.interfaces.ICallLog.CallType;
 import com.ap41017.c.interfaces.IContact;
 import com.ap41017.c.interfaces.IContactsManager;
-import com.ap41017.c.interfaces.IDataColumn;
-import com.ap41017.c.interfaces.IDataColumn.IPhone;
 import com.ap41017.c.interfaces.IGroup;
 
 public class BasicContactManager implements IContactsManager {
+
+	private static final int sCallLogAllIdx = 3;
+	private static final int sCallLogUnknownIdx = 4;
 
 	@Override
 	public IContactsManager loadDatas(ContentResolver cr) {
@@ -67,15 +68,15 @@ public class BasicContactManager implements IContactsManager {
 	}
 
 	@Override
-	public IPhone[] phoneLookup(String phone) {
+	public ConcretPhone[] filterLookup(String textToFilter) {
 		do {
-			if (TextUtils.isEmpty(phone))
+			if (TextUtils.isEmpty(textToFilter))
 				break;
 			Cursor p = null;
 			try {
 				p = this.mCCClient.query(
 						Uri.withAppendedPath(Phone.CONTENT_FILTER_URI,
-								Uri.encode(phone)),
+								Uri.encode(textToFilter)),
 						new String[] { Phone.NUMBER }, null, null, null);
 			} catch (RemoteException e) {
 				break;
@@ -84,10 +85,10 @@ public class BasicContactManager implements IContactsManager {
 				break;
 			//
 			HashMap<String, ConcretPhone> phonesMap = this.mPhonesMap;
-			IPhone[] phones = null;
+			ConcretPhone[] phones = null;
 			final int count = p.getCount();
 			if (p.moveToFirst() && count > 0) {
-				phones = new IPhone[count];
+				phones = new ConcretPhone[count];
 				for (int i = 0; i < count; ++i) {
 					phones[i] = phonesMap.get(p.getString(0));
 					p.moveToNext();
@@ -100,9 +101,19 @@ public class BasicContactManager implements IContactsManager {
 	}
 
 	@Override
-	public IGroup[] getGroups() {
+	public IGroup[] getAllGroups() {
 		Collection<ConcretGroup> values = this.mGroupsMap.values();
 		return values.toArray(new IGroup[values.size()]);
+	}
+
+	@Override
+	public IGroup[] getVisibleGroups() {
+		Collection<ConcretGroup> values = this.mGroupsMap.values();
+		List<ConcretGroup> list = new ArrayList<ConcretGroup>(values.size());
+		for (ConcretGroup group : values)
+			if (group.getVisible())
+				list.add(group);
+		return list.toArray(new IGroup[list.size()]);
 	}
 
 	@Override
@@ -112,6 +123,8 @@ public class BasicContactManager implements IContactsManager {
 
 	@Override
 	public IContact[] getContactsIn(IGroup group) {
+		if (group == null)
+			throw new IllegalArgumentException("Group Cannot be null!!");
 		ArrayList<ConcretContact> list = this.mGroupListMap.get(group.getId());
 		return list.toArray(new IContact[list.size()]);
 	}
@@ -121,9 +134,9 @@ public class BasicContactManager implements IContactsManager {
 		if (callType != null)
 			return this.mCalls[callType.ordinal()];
 		if (getUnknown)
-			return this.mCalls[4];
+			return this.mCalls[sCallLogUnknownIdx];
 		else
-			return this.mCalls[3];
+			return this.mCalls[sCallLogAllIdx];
 	}
 
 	private ContentProviderClient mCCClient, mCLClient;
@@ -144,40 +157,28 @@ public class BasicContactManager implements IContactsManager {
 			return;
 		}
 		try {
-			mConMap = new HashMap<Long, ConcretContact>(c.getCount());
-			mRawMap = new HashMap<Long, ConcretContact>(c.getCount());
-			HashMap<Long, ConcretContact> conMap = mConMap;
-			HashMap<Long, ConcretContact> rawMap = mRawMap;
+			HashMap<Long, ConcretContact> conMap = new HashMap<Long, ConcretContact>(
+					c.getCount());
+			HashMap<Long, ConcretContact> rawMap = new HashMap<Long, ConcretContact>(
+					c.getCount());
 			ConcretContact contact;
-			long[] list;
-			int index;
-			long id, conid;
+			long rawId, contactId;
 			for (int i = 0; i < c.getCount(); ++i) {
-				id = c.getLong(0);
-				conid = c.getLong(1);
-				contact = conMap.get(conid);
+				rawId = c.getLong(0);
+				contactId = c.getLong(1);
+				contact = conMap.get(contactId);
 				if (contact == null)
-					conMap.put(conid, contact = new ConcretContact(conid));
-				index = contact.mRawContactLength;
-				list = contact.mRawContactIds;
-				if (index == list.length) {
-					list = contact.mRawContactIds = expand(list);
-				}
-				list[index] = id;
-				++contact.mRawContactLength;
-				//
-				rawMap.put(id, contact);
+					conMap.put(contactId, contact = new ConcretContact(
+							contactId));
+				contact.addRawId(rawId);
+				rawMap.put(rawId, contact);
 				c.moveToNext();
 			}
+			mConMap = conMap;
+			mRawMap = rawMap;
 		} finally {
 			c.close();
 		}
-	}
-
-	private static long[] expand(long[] src) {
-		long[] expand = new long[src.length * 2];
-		System.arraycopy(src, 0, expand, 0, src.length);
-		return expand;
 	}
 
 	private void visitContacts() throws RemoteException {
@@ -194,24 +195,18 @@ public class BasicContactManager implements IContactsManager {
 		HashMap<Long, ConcretContact> conMap = mConMap;
 		try {
 			ConcretContact contact;
-			long id, last;
-			String dname = null, lookup = null;
-			int times;
-			for (int i = 0; i < c.getCount(); ++i) {
+			long id;
+			for (int i = 0, count = c.getCount(); i < count; ++i) {
 				id = c.getLong(0);
-				dname = c.getString(1);
-				lookup = c.getString(2);
-				times = c.getInt(3);
-				last = c.getLong(4);
 				contact = conMap.get(id);
 				if (contact == null) {
-					Log.d("gc", "null con: " + dname);
-				} else {
-					contact.mName = dname;
-					contact.mLookupKey = lookup;
-					contact.mTimesContacted = times;
-					contact.mLastTimeContacted = last;
+					contact = new ConcretContact(id);
+					conMap.put(id, contact);
 				}
+				contact.setDisplayName(c.getString(1))
+						.setLookupKey(c.getString(2))
+						.setTimesContacted(c.getInt(3))
+						.setLastTimeContact(c.getLong(4));
 				c.moveToNext();
 			}
 		} finally {
@@ -222,10 +217,10 @@ public class BasicContactManager implements IContactsManager {
 	}
 
 	private void visitGroups() throws RemoteException {
-		Cursor g = mCCClient.query(Groups.CONTENT_URI, new String[] {
-				Groups._ID, Groups.SYSTEM_ID, Groups.ACCOUNT_NAME,
-				Groups.ACCOUNT_TYPE, Groups.TITLE, Groups.GROUP_VISIBLE, },
-				null, null, null);
+		Cursor g = mCCClient.query(Groups.CONTENT_URI,
+				new String[] { Groups._ID, Groups.SYSTEM_ID, Groups.TITLE,
+						Groups.GROUP_VISIBLE, Groups.ACCOUNT_NAME,
+						Groups.ACCOUNT_TYPE, }, null, null, null);
 		if (g == null)
 			return;
 		if (!g.moveToFirst()) {
@@ -235,28 +230,20 @@ public class BasicContactManager implements IContactsManager {
 		try {
 			HashMap<Long, ConcretGroup> groupsMap = new HashMap<Long, ConcretGroup>(
 					g.getCount());
-			mGroupsMap = groupsMap;
 			long id;
 			ConcretGroup group;
-			for (int i = 0; i < g.getCount(); ++i) {
+			for (int i = 0, count = g.getCount(); i < count; ++i) {
 				id = g.getLong(0);
-				group = new ConcretGroup(id);
-				group.mSystemId = g.getString(1);
-				group.mAccountName = g.getString(2);
-				group.mAccountType = g.getString(3);
-				group.mTitle = g.getString(4);
-				group.mVisible = (g.getInt(5) > 0);
+				group = new ConcretGroup(id, g.getString(1), g.getString(2),
+						(g.getInt(3) > 0));
+				group.setAccount(g.getString(4), g.getString(5));
 				groupsMap.put(id, group);
 				g.moveToNext();
 			}
+			mGroupsMap = groupsMap;
 		} finally {
 			g.close();
 		}
-	}
-
-	private static <T> T[] expand(T[] src, T[] expand) {
-		System.arraycopy(src, 0, expand, 0, src.length);
-		return expand;
 	}
 
 	private void visitData() throws RemoteException {
@@ -271,58 +258,42 @@ public class BasicContactManager implements IContactsManager {
 			return;
 		}
 		HashMap<Long, ConcretContact> rawMap = mRawMap;
-		mPhonesMap = new HashMap<String, ConcretData.ConcretPhone>();
-		mGroupListMap = new HashMap<Long, ArrayList<ConcretContact>>();
-		HashMap<String, ConcretData.ConcretPhone> phonesMap = mPhonesMap;
-		HashMap<Long, ArrayList<ConcretContact>> groupListMap = mGroupListMap;
-		Set<Entry<Long, ConcretGroup>> groupset = mGroupsMap.entrySet();
-		for (Entry<Long, ConcretGroup> e : groupset)
+		HashMap<String, ConcretPhone> phonesMap = new HashMap<String, ConcretPhone>();
+		HashMap<Long, ArrayList<ConcretContact>> groupListMap = new HashMap<Long, ArrayList<ConcretContact>>();
+		HashMap<Long, ConcretGroup> groupMap = mGroupsMap;
+		for (Entry<Long, ConcretGroup> e : groupMap.entrySet())
 			groupListMap.put(e.getKey(), new ArrayList<ConcretContact>());
 		//
 		long dataId, rawId;
 		ConcretContact contact = null;
 		String mimetype = null;
-		int index = 0;
-		ConcretData data = null;
-		IDataColumn[] datas = null;
-		for (int i = 0; i < c.getCount(); ++i) {
+		for (int i = 0, count = c.getCount(); i < count; ++i) {
 			dataId = c.getLong(0);
 			rawId = c.getLong(1);
 			mimetype = c.getString(2);
 			contact = rawMap.get(rawId);
-			index = contact.mDataColumnLength;
-			datas = contact.mDatas;
 			//
 			if (Phone.CONTENT_ITEM_TYPE.equals(mimetype)) {
 				ConcretPhone phone = new ConcretPhone(dataId, contact);
-				phone.mNumber = c.getString(5);
-				phone.mType = c.getInt(6);
-				phone.mLabel = c.getString(7);
-				data = phone;
-				phonesMap.put(phone.mNumber, phone);
+				String number = c.getString(5);
+				phone.setPhone(number, c.getInt(6), c.getString(7));
+				//
+				phonesMap.put(number, phone);
+				contact.addPhone(phone);
 			} else if (GroupMembership.CONTENT_ITEM_TYPE.equals(mimetype)) {
-				ConcretGroupMembership group = new ConcretGroupMembership(
-						dataId, contact);
 				long groupId = c.getLong(5);
-				group.mGroupId = groupId;
-				data = group;
+				ConcretGroupMembership group = new ConcretGroupMembership(
+						dataId, contact, groupMap.get(groupId));
 				//
 				groupListMap.get(groupId).add(contact);
-				//
+				contact.addGroupMembership(group);
 			} else if (Photo.CONTENT_ITEM_TYPE.equals(mimetype)) {
-				contact.mPhoto = c.getBlob(8);
-			}
-			if (data != null) {
-				if (index == datas.length) {
-					datas = contact.mDatas = expand(datas,
-							new IDataColumn[datas.length * 2]);
-				}
-				datas[index] = data;
-				++contact.mDataColumnLength;
-				data = null;
+				contact.setPhoto(c.getBlob(8));
 			}
 			c.moveToNext();
 		}
+		mPhonesMap = phonesMap;
+		mGroupListMap = groupListMap;
 	}
 
 	private void visitCallLogs() throws RemoteException {
@@ -338,7 +309,6 @@ public class BasicContactManager implements IContactsManager {
 		final int count = c.getCount();
 		ConcretCallLog[][] calls = new ConcretCallLog[5][];
 		ConcretCallLog[] allcalls = new ConcretCallLog[count];
-		calls[3] = allcalls;
 		this.mCalls = calls;
 		//
 		List<ConcretCallLog> in = new ArrayList<ConcretCallLog>(), //
@@ -347,54 +317,43 @@ public class BasicContactManager implements IContactsManager {
 		unknown = new ArrayList<ConcretCallLog>();
 		//
 		ConcretCallLog call = null;
-		IPhone phone = null;
-		long id, date, dur;
 		String number = null;
-		int type;
 		for (int i = 0; i < count; ++i) {
-			id = c.getLong(0);
 			number = c.getString(1);
-			type = c.getInt(2);
-			phone = this.lookup(number);
-			call = new ConcretCallLog(id);
-			call.setupNumber(number, type, phone);
-			date = c.getLong(3);
-			dur = c.getLong(4);
-			call.mTime = date;
-			call.mDuration = dur;
+			call = ConcretCallLog.newInstance(c.getLong(0), number,
+					this.lookup(number), unknown);
+			call.setType(c.getInt(2), in, out, missed);
+			call.setDate(c.getLong(3)).setDuration(c.getLong(4));
 			allcalls[i] = call;
-			switch (call.getType()) {
-			case INCOMING:
-				in.add(call);
-				break;
-			case OUTGOING:
-				out.add(call);
-				break;
-			case MISSED:
-				missed.add(call);
-				break;
-			}
-			if (call.getParent() == null)
-				unknown.add(call);
 			c.moveToNext();
 		}
 		calls[0] = in.toArray(new ConcretCallLog[in.size()]);
 		calls[1] = out.toArray(new ConcretCallLog[out.size()]);
 		calls[2] = missed.toArray(new ConcretCallLog[missed.size()]);
-		calls[4] = unknown.toArray(new ConcretCallLog[unknown.size()]);
+		calls[sCallLogAllIdx] = allcalls;
+		calls[sCallLogUnknownIdx] = unknown.toArray(new ConcretCallLog[unknown
+				.size()]);
 		c.close();
 	}
 
-	private IPhone lookup(String number) {
-		IPhone phone = this.mPhonesMap.get(number);
-		if (phone != null)
-			return phone;
-		else {
-			IPhone[] results = this.phoneLookup(number);
-			if (results != null && results.length != 0)
-				return results[0];
-			else
-				return null;
+	private ConcretPhone lookup(String number) {
+		ConcretPhone phone = this.mPhonesMap.get(number);
+		if (phone == null) {
+			try {
+				Cursor c = this.mCCClient.query(Uri.withAppendedPath(
+						PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number)),
+						new String[] { PhoneLookup.NUMBER }, null, null, null);
+				if (c == null)
+					return null;
+				if (c.moveToFirst()) {
+					String realNum = c.getString(0);
+					phone = this.mPhonesMap.get(realNum);
+					this.mPhonesMap.put(number, phone);
+				}
+				c.close();
+			} catch (RemoteException e) {
+			}
 		}
+		return phone;
 	}
 }

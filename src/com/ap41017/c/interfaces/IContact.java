@@ -2,9 +2,10 @@ package com.ap41017.c.interfaces;
 
 import android.net.Uri;
 
-public interface IContact extends IBaseColumn, Comparable<IContact> {
-	public <Ret, Arg> Ret[] acceptIDataColumns(IVisitor<Ret, Arg> visitor,
-			Arg arg);
+import com.ap41017.c.interfaces.IContactData.IGroupMembership;
+import com.ap41017.c.interfaces.IContactData.IPhone;
+
+public interface IContact extends IBaseColumn {
 
 	public Uri getLookupUri();
 
@@ -16,7 +17,9 @@ public interface IContact extends IBaseColumn, Comparable<IContact> {
 
 	public byte[] getPhoto();
 
-	public int getRawContactCount();
+	public long[] getRawContactIds();
 
-	public long getRawContactId(int position);
+	public IPhone[] getPhones();
+
+	public IGroupMembership[] getGroupMemberships();
 }

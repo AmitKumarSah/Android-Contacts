@@ -1,10 +1,9 @@
 package com.ap41017.c.interfaces;
 
-import com.ap41017.c.interfaces.IDataColumn.IPhone;
 
-public interface ICallLog extends IBaseColumn {
+public interface ICallLog extends IContactData {
 
-	public IPhone getParent();
+	public IPhone getPhoneParent();
 
 	public String getNumber();
 
